@@ -1,0 +1,97 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  PARENT
+  CHILD
+}
+
+enum CardStatus {
+  NEW
+  LEARNING
+  KNOWN
+}
+
+enum ReviewResult {
+  KNOWN
+  UNKNOWN
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  username     String   @unique
+  passwordHash String
+  role         Role     @default(CHILD)
+  createdAt    DateTime @default(now())
+
+  createdSubjects Subject[]       @relation("SubjectCreatedBy")
+  progress        CardProgress[]
+  reviews         ReviewLog[]
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  name        String
+  color       String   @default("#6366f1")
+  createdAt   DateTime @default(now())
+  createdById String
+  createdBy   User     @relation("SubjectCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  topics Topic[]
+}
+
+model Topic {
+  id        String   @id @default(cuid())
+  name      String
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  flashcards Flashcard[]
+}
+
+model Flashcard {
+  id        String   @id @default(cuid())
+  front     String
+  back      String
+  topicId   String
+  topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  progress CardProgress[]
+  reviews  ReviewLog[]
+}
+
+model CardProgress {
+  id             String     @id @default(cuid())
+  userId         String
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardId         String
+  card           Flashcard  @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  status         CardStatus @default(NEW)
+  timesReviewed  Int        @default(0)
+  lastReviewedAt DateTime?
+  updatedAt      DateTime   @updatedAt
+
+  @@unique([userId, cardId])
+}
+
+model ReviewLog {
+  id         String       @id @default(cuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardId     String
+  card       Flashcard    @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  result     ReviewResult
+  reviewedAt DateTime     @default(now())
+}
