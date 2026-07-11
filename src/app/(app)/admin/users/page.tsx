@@ -1,4 +1,4 @@
-import { requireUser } from "@/lib/dal";
+import { requireParent } from "@/lib/dal";
 import { db } from "@/lib/db";
 import { deleteUser } from "@/lib/actions/admin";
 import { DeleteButton } from "../delete-button";
@@ -11,7 +11,7 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export default async function AdminUsersPage() {
-  const me = await requireUser();
+  const me = await requireParent();
   const users = await db.user.findMany({ orderBy: { createdAt: "asc" } });
 
   return (

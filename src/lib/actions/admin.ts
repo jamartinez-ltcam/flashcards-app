@@ -3,15 +3,17 @@
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { requireParent } from "@/lib/dal";
+import { requireParent, requireUser } from "@/lib/dal";
 
 function str(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value.trim() : "";
 }
 
+// El contenido (asignaturas/temas/fichas) lo puede gestionar cualquier usuario
+// autenticado; la gestión de usuarios queda reservada al rol PARENT.
 export async function createSubject(_prevState: string | undefined, formData: FormData) {
-  const user = await requireParent();
+  const user = await requireUser();
   const name = str(formData, "name");
   const color = str(formData, "color") || "#6366f1";
   if (!name) return "El nombre es obligatorio.";
@@ -22,7 +24,7 @@ export async function createSubject(_prevState: string | undefined, formData: Fo
 }
 
 export async function deleteSubject(subjectId: string) {
-  await requireParent();
+  await requireUser();
   await db.subject.delete({ where: { id: subjectId } });
   revalidatePath("/admin/subjects");
   revalidatePath("/dashboard");
@@ -33,7 +35,7 @@ export async function createTopic(
   _prevState: string | undefined,
   formData: FormData,
 ) {
-  await requireParent();
+  await requireUser();
   const name = str(formData, "name");
   if (!name) return "El nombre es obligatorio.";
 
@@ -44,7 +46,7 @@ export async function createTopic(
 }
 
 export async function deleteTopic(topicId: string, subjectId: string) {
-  await requireParent();
+  await requireUser();
   await db.topic.delete({ where: { id: topicId } });
   revalidatePath(`/admin/subjects/${subjectId}`);
   revalidatePath(`/subjects/${subjectId}`);
@@ -57,7 +59,7 @@ export async function createFlashcard(
   _prevState: string | undefined,
   formData: FormData,
 ) {
-  await requireParent();
+  await requireUser();
   const front = str(formData, "front");
   const back = str(formData, "back");
   if (!front || !back) return "Rellena la pregunta y la respuesta.";
@@ -73,7 +75,7 @@ export async function deleteFlashcard(
   topicId: string,
   subjectId: string,
 ) {
-  await requireParent();
+  await requireUser();
   await db.flashcard.delete({ where: { id: cardId } });
   revalidatePath(`/admin/subjects/${subjectId}/topics/${topicId}`);
   revalidatePath(`/subjects/${subjectId}`);
