@@ -1,14 +1,14 @@
 import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 function createPrismaClient() {
-  const url = process.env.DATABASE_URL ?? "file:./dev.db";
-  const adapter = url.startsWith("postgres")
-    ? new PrismaPg({ connectionString: url })
-    : new PrismaBetterSqlite3({ url });
-
-  return new PrismaClient({ adapter });
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error(
+      "Falta la variable de entorno DATABASE_URL (connection string de Postgres).",
+    );
+  }
+  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 }
 
 const globalForPrisma = globalThis as unknown as {

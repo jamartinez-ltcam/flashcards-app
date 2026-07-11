@@ -14,18 +14,23 @@ App de flashcards multiusuario para estudiar inglés, historia u otras asignatur
 ## Stack técnico
 
 - **Next.js 16** (App Router, TypeScript, Turbopack)
-- **Prisma 7** como ORM, con SQLite en desarrollo local y PostgreSQL en producción
+- **Prisma 7** como ORM, con PostgreSQL (Neon)
 - **Auth.js (NextAuth v5)** con proveedor de credenciales (usuario/contraseña) y contraseñas cifradas con bcrypt
 - **Tailwind CSS 4**
 - **Recharts** para el gráfico de evolución
 
 ## Desarrollo local
 
-No requiere Docker ni instalar Postgres: usa un fichero SQLite local.
+Necesita un `.env` con la connection string de Postgres (Neon) y un secreto de Auth.js:
+
+```
+DATABASE_URL="postgresql://...":
+AUTH_SECRET="..."
+```
 
 ```bash
 npm install
-npx prisma migrate dev   # crea prisma/dev.db (ya ejecutado en este proyecto)
+npx prisma migrate dev   # aplica las migraciones a la base de datos
 npx prisma db seed       # crea el usuario admin y datos de ejemplo de Inglés
 npm run dev
 ```
@@ -47,7 +52,7 @@ Cambia esta contraseña cuanto antes desde **Administración → Usuarios**, y c
 prisma/schema.prisma        Modelo de datos (User, Subject, Topic, Flashcard, CardProgress, ReviewLog)
 prisma/seed.ts               Datos de ejemplo (admin + Inglés/Vocabulario básico)
 src/auth.ts                  Configuración de Auth.js (Credentials + JWT)
-src/lib/db.ts                Cliente Prisma (elige adapter SQLite o Postgres según DATABASE_URL)
+src/lib/db.ts                Cliente Prisma (Postgres vía @prisma/adapter-pg)
 src/lib/dal.ts                Comprobación de sesión/rol (requireUser, requireParent)
 src/lib/queries.ts           Lecturas: progreso por asignatura/tema, cola de estudio, histórico
 src/lib/actions/study.ts     Mutaciones de estudio: marcar ficha, resetear ficha, resetear sabidas
@@ -58,35 +63,17 @@ src/app/(app)                Rutas protegidas: dashboard, asignaturas, estudio, 
 
 ## Desplegar en producción (Vercel + Neon Postgres)
 
-El proyecto está preparado para producción con Postgres, pero en desarrollo usa SQLite para no requerir instalar nada. Pasos para pasar a producción:
+1. **Base de datos**: proyecto Postgres gratuito en [Neon](https://neon.tech); copia su connection string.
 
-1. **Crea una base de datos Postgres gratuita en [Neon](https://neon.tech)** (u otro proveedor Postgres) y copia su connection string.
-
-2. **Cambia el proveedor del datasource** en `prisma/schema.prisma`:
-
-   ```prisma
-   datasource db {
-     provider = "postgresql"
-   }
-   ```
-
-3. **Borra las migraciones de SQLite y crea las de Postgres** (son incompatibles entre motores):
+2. **Migraciones y seed** contra la base de producción:
 
    ```bash
-   rm -rf prisma/migrations
-   DATABASE_URL="postgresql://...tu-connection-string..." npx prisma migrate dev --name init
-   ```
-
-4. **En Vercel**, crea el proyecto a partir de este repositorio y configura las variables de entorno:
-   - `DATABASE_URL` → la connection string de Neon
-   - `AUTH_SECRET` → genera una nueva con `npx auth secret` (no reutilices la de desarrollo)
-
-5. Despliega. En el primer deploy, ejecuta el seed contra la base de producción si quieres los datos de ejemplo:
-
-   ```bash
+   DATABASE_URL="postgresql://...tu-connection-string..." npx prisma migrate deploy
    DATABASE_URL="postgresql://...tu-connection-string..." npx prisma db seed
    ```
 
-   Cambia la contraseña del usuario `papa` inmediatamente después desde Administración.
+3. **En Vercel**, importa este repositorio y configura las variables de entorno (imprescindible, el build falla sin ellas):
+   - `DATABASE_URL` → la connection string de Neon
+   - `AUTH_SECRET` → genera una con `openssl rand -base64 32` (no reutilices la de desarrollo)
 
-El código de `src/lib/db.ts` ya detecta si `DATABASE_URL` es Postgres o SQLite y usa el driver adapter correcto, así que no hace falta tocar nada más.
+4. Despliega. Cambia la contraseña del usuario `papa` inmediatamente después desde Administración → Usuarios.
